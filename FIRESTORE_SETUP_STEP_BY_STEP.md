@@ -1,163 +1,20 @@
-# 🔧 Passo a Passo: Configurar Firestore para Sincronização
+# 🔧 Passo a passo atualizado: Supabase
 
-## PASSO 1️⃣: Abra Firebase Console
+Este projeto agora usa Supabase em vez de Firebase Firestore. As instruções de configuração atuais estão em `README.md`.
 
-1. Acesse: https://console.firebase.google.com/
-2. Clique no seu projeto: **"buscaq-slc-planorte"**
-3. Na esquerda, clique em **"Firestore Database"**
+## O que mudou
 
-```
-Você deve ver algo como:
-┌─────────────────────────────┐
-│ Firebase Console            │
-│ ├─ Visão Geral             │
-│ ├─ Authentication          │
-│ ├─ Firestore Database  ← CLIQUE AQUI
-│ ├─ Realtime Database       │
-│ ├─ Storage                 │
-│ └─ ...                      │
-└─────────────────────────────┘
-```
+- Backend: Supabase PostgreSQL + Realtime
+- Tabela usada: `inventory`
+- Variáveis de ambiente: `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`
 
----
+## O que fazer
 
-## PASSO 2️⃣: Criar Coleção "inventory" (se não existir)
+1. Abra `README.md`
+2. Siga os passos em **Supabase setup**
+3. Não use as etapas do Firestore para o app atual
 
-### 2a. Verifique se já existe
-
-Abra Firestore Database. Se você vê **"Nenhuma coleção"**, passe para 2b.
-
-Se já vê uma coleção chamada **"inventory"**, vá direto para o **PASSO 3** ✅
-
-### 2b. Criar coleção (se vazia)
-
-1. Clique em **"Iniciar coleção"** (ou "+ Adicionar coleção")
-2. Nome da coleção: `inventory`
-3. Clique em **"Próximo"**
-4. Em "ID do documento", escreva: `RLM-001`
-5. Adicione os campos:
-
-```
-code        (String)  = RLM-001
-name        (String)  = Rolamento SKF 6205
-sector      (String)  = Almoxarifado
-location    (String)  = Prat. A3 · Gaveta 28
-status      (String)  = Disponível
-quantity    (String)  = 1 UN
-```
-
-6. Clique em **"Salvar"**
-
-✅ Coleção "inventory" criada!
-
----
-
-## PASSO 3️⃣: Configurar Regras de Segurança ⭐ (IMPORTANTE!)
-
-### 3a. Clique na aba "Regras"
-
-```
-Você deve estar em:
-Firestore Database
-├─ Dados (aba)
-└─ Regras (aba) ← CLIQUE AQUI
-```
-
-### 3b. Apague o conteúdo atual
-
-Você verá algo como:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-```
-
-**Selecione TUDO** (Ctrl+A) e **delete**.
-
-### 3c. Cole este código exatamente:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /inventory/{document=**} {
-      allow read: if true;
-      allow write: if true;
-    }
-  }
-}
-```
-
-### 3d. Clique em "Publicar"
-
-```
-Botão azul no canto inferior direito:
-┌─────────────────┐
-│   Publicar   ← CLIQUE
-└─────────────────┘
-```
-
-✅ Regras salvas!
-
----
-
-## PASSO 4️⃣: Verificar se Funcionou
-
-### 4a. Abra o app em um navegador
-
-```
-http://localhost:5173/
-```
-
-### 4b. Abra o DevTools (F12)
-
-1. Pressione **F12** no teclado
-2. Clique em **"Console"**
-3. Procure por mensagens de erro
-
-Se vir algo como:
-```
-Firestore snapshot failed: ...
-```
-
-❌ Algo está errado (volte para o Passo 3)
-
-Se não vir erros, continue...
-
-### 4c. Teste a sincronização
-
-1. Abra **2 abas do navegador** com o app:
-   - Aba 1: `http://localhost:5173/`
-   - Aba 2: `http://localhost:5173/`
-
-2. **Na Aba 1**, procure uma peça e clique em **"Marcar como retirada"**
-
-3. **Na Aba 2**, veja se a peça mudou para **"Acabou"** em menos de 1 segundo
-
-✅ Se apareceu, funcionou! 🎉
-
----
-
-## PASSO 5️⃣: Testar em Celular/Outro Computador
-
-### 5a. Descubra o IP do seu computador
-
-Abra **PowerShell** e escreva:
-
-```powershell
-ipconfig
-```
-
-Procure por uma linha que começa com `IPv4 Address:` algo como:
-```
-IPv4 Address:  192.168.1.100
-```
+> Caso queira referenciar o histórico antigo, este arquivo mantém a informação somente como referência.
 
 Copie esse número.
 

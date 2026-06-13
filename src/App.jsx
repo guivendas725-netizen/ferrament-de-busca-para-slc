@@ -1,50 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { initializeApp } from 'firebase/app'
-import {
-  collection,
-  deleteDoc,
-  doc,
-  enableIndexedDbPersistence,
-  getFirestore,
-  onSnapshot,
-  orderBy,
-  query,
-  setDoc,
-} from 'firebase/firestore'
+import { createClient } from '@supabase/supabase-js'
 import './App.css'
-import logo from"./assets/logoBuscAq.png"
+import logo from "./assets/logoBuscAq.png"
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-}
-
-const hasFirebaseConfig = Boolean(
-  firebaseConfig.apiKey &&
-    firebaseConfig.authDomain &&
-    firebaseConfig.projectId &&
-    firebaseConfig.storageBucket &&
-    firebaseConfig.messagingSenderId &&
-    firebaseConfig.appId,
-)
-
-const firebaseApp = hasFirebaseConfig ? initializeApp(firebaseConfig) : null
-const db = hasFirebaseConfig ? getFirestore(firebaseApp) : null
-
-// Habilitar sincronização offline
-if (hasFirebaseConfig && db) {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Múltiplas abas abertas - sincronização offline pode estar limitada')
-    } else if (err.code === 'unimplemented') {
-      console.warn('Navegador não suporta sincronização offline')
-    }
-  })
-}
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey)
+const supabase = hasSupabaseConfig ? createClient(supabaseUrl, supabaseAnonKey) : null
 
 const allowedSectors = ['Almoxarifado', 'Sala do Morto']
 
@@ -108,7 +70,7 @@ const initialInventory = [
 ]
 
 function App() {
-  const [items, setItems] = useState(hasFirebaseConfig ? [] : initialInventory)
+  const [items, setItems] = useState(hasSupabaseConfig ? [] : initialInventory)
   const [search, setSearch] = useState('')
   const [sectorFilter, setSectorFilter] = useState('Todos os setores')
   const [statusFilter, setStatusFilter] = useState('Todos os status')
@@ -121,31 +83,45 @@ function App() {
     quantity: '',
   })
   const [showAddForm, setShowAddForm] = useState(false)
-  const [loading, setLoading] = useState(hasFirebaseConfig)
+  const [loading, setLoading] = useState(hasSupabaseConfig)
 
   useEffect(() => {
-    if (!hasFirebaseConfig) {
+    if (!hasSupabaseConfig) {
       return
     }
 
-    const itemsQuery = query(collection(db, 'inventory'), orderBy('code'))
-    const unsubscribe = onSnapshot(
-      itemsQuery,
-      (snapshot) => {
-        const remoteItems = snapshot.docs.map((docSnapshot) => ({
-          id: docSnapshot.id,
-          ...docSnapshot.data(),
-        }))
-        setItems(remoteItems)
-        setLoading(false)
-      },
-      (error) => {
-        console.error('Firestore snapshot failed:', error)
-        setLoading(false)
-      },
-    )
+    async function loadInventory() {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .order('code', { ascending: true })
 
-    return () => unsubscribe()
+      if (error) {
+        console.error('Supabase select error:', error)
+        setLoading(false)
+        return
+      }
+
+      setItems(data ?? [])
+      setLoading(false)
+    }
+
+    loadInventory()
+
+    const channel = supabase
+      .channel('inventory_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'inventory' },
+        () => {
+          loadInventory()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const sectors = useMemo(
@@ -202,8 +178,14 @@ function App() {
       return
     }
 
-    if (hasFirebaseConfig) {
-      await setDoc(doc(db, 'inventory', trimmedData.code), trimmedData)
+    if (hasSupabaseConfig) {
+      const { error } = await supabase
+        .from('inventory')
+        .upsert(trimmedData, { onConflict: 'code' })
+
+      if (error) {
+        console.error('Supabase upsert error:', error)
+      }
     } else {
       setItems((current) => [trimmedData, ...current])
     }
@@ -226,8 +208,15 @@ function App() {
 
     const updated = { ...item, status: 'Acabou' }
 
-    if (hasFirebaseConfig) {
-      await setDoc(doc(db, 'inventory', code), updated)
+    if (hasSupabaseConfig) {
+      const { error } = await supabase
+        .from('inventory')
+        .update({ status: 'Acabou' })
+        .eq('code', code)
+
+      if (error) {
+        console.error('Supabase update error:', error)
+      }
     } else {
       setItems((current) =>
         current.map((item) =>
@@ -245,8 +234,15 @@ function App() {
 
     const updated = { ...item, status: 'Disponível' }
 
-    if (hasFirebaseConfig) {
-      await setDoc(doc(db, 'inventory', code), updated)
+    if (hasSupabaseConfig) {
+      const { error } = await supabase
+        .from('inventory')
+        .update({ status: 'Disponível' })
+        .eq('code', code)
+
+      if (error) {
+        console.error('Supabase update error:', error)
+      }
     } else {
       setItems((current) =>
         current.map((item) =>
@@ -257,8 +253,15 @@ function App() {
   }
 
   async function handleDeletePiece(code) {
-    if (hasFirebaseConfig) {
-      await deleteDoc(doc(db, 'inventory', code))
+    if (hasSupabaseConfig) {
+      const { error } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('code', code)
+
+      if (error) {
+        console.error('Supabase delete error:', error)
+      }
     } else {
       setItems((current) => current.filter((item) => item.code !== code))
     }
@@ -439,7 +442,7 @@ function App() {
           </p>
         </div>
 
-        {hasFirebaseConfig && loading ? (
+        {hasSupabaseConfig && loading ? (
           <div className="loading-state">Carregando inventário...</div>
         ) : filteredItems.length === 0 ? (
           <div className="empty-state">

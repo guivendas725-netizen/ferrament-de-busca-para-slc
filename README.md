@@ -11,25 +11,54 @@ Currently, two official plugins are available:
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Firebase setup
+## Supabase setup
 
-This app can sync inventory data in real time using Firebase Firestore.
+1. Create a Supabase project at https://app.supabase.com
+2. Create a table named `inventory`
+   - `code` — type `text`, primary key
+   - `name` — type `text`
+   - `sector` — type `text`
+   - `location` — type `text`
+   - `status` — type `text`
+   - `quantity` — type `text`
+3. In Supabase, open **Settings → API** and copy:
+   - `API URL`
+   - `anon public` key
+4. Create a `.env` file in the project root with:
 
-1. Create a Firebase project at https://console.firebase.google.com/
-2. Add a Web app to the project
-3. Enable Firestore in the Firebase console
-4. Copy the web app configuration values and create a `.env` file in the project root
+```env
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-public-anon-key
+```
 
-The app expects these variables:
+5. Install dependencies if needed:
 
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
+```bash
+npm install
+```
 
-Use `npm run dev` to start the app after configuring Firebase.
+6. Start the app:
+
+```bash
+npm run dev
+```
+
+## How the app works
+
+- Reads inventory from the Supabase `inventory` table
+- Uses Supabase Realtime (`postgres_changes`) to refresh the UI automatically
+- Supports adding, updating, and deleting items
+- Falls back to local sample data when Supabase env vars are not set
+
+## Notes
+
+- Never commit `.env`.
+- `.env.example` shows the required public Supabase variables.
+- `code` is the unique item key used for upsert, updates, and deletions.
+
+## ESLint
+
+If you want stronger typing and linting, consider migrating to TypeScript with `typescript-eslint`.
 
 ## Expanding the ESLint configuration
 
