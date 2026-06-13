@@ -4,6 +4,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  enableIndexedDbPersistence,
   getFirestore,
   onSnapshot,
   orderBy,
@@ -33,6 +34,17 @@ const hasFirebaseConfig = Boolean(
 
 const firebaseApp = hasFirebaseConfig ? initializeApp(firebaseConfig) : null
 const db = hasFirebaseConfig ? getFirestore(firebaseApp) : null
+
+// Habilitar sincronização offline
+if (hasFirebaseConfig && db) {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Múltiplas abas abertas - sincronização offline pode estar limitada')
+    } else if (err.code === 'unimplemented') {
+      console.warn('Navegador não suporta sincronização offline')
+    }
+  })
+}
 
 const allowedSectors = ['Almoxarifado', 'Sala do Morto']
 
