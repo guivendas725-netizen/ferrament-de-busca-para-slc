@@ -106,6 +106,35 @@ function App() {
       setLoading(false)
     }
 
+    function applyRealtimeChange(payload) {
+      const newRecord = payload.new ?? payload.record
+      const oldRecord = payload.old ?? payload.old_record
+
+      if (payload.eventType === 'DELETE') {
+        const codeToRemove = oldRecord?.code ?? newRecord?.code
+        if (!codeToRemove) {
+          loadInventory()
+          return
+        }
+
+        setItems((current) => current.filter((item) => item.code !== codeToRemove))
+        return
+      }
+
+      if (newRecord?.code) {
+        setItems((current) =>
+          current.some((item) => item.code === newRecord.code)
+            ? current.map((item) =>
+                item.code === newRecord.code ? newRecord : item,
+              )
+            : [newRecord, ...current],
+        )
+        return
+      }
+
+      loadInventory()
+    }
+
     loadInventory()
 
     const channel = supabase
@@ -113,14 +142,14 @@ function App() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'inventory' },
-        () => {
-          loadInventory()
+        (payload) => {
+          applyRealtimeChange(payload)
         },
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      channel.unsubscribe()
     }
   }, [])
 
@@ -261,6 +290,8 @@ function App() {
 
       if (error) {
         console.error('Supabase delete error:', error)
+      } else {
+        setItems((current) => current.filter((item) => item.code !== code))
       }
     } else {
       setItems((current) => current.filter((item) => item.code !== code))
